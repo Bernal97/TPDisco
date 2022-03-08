@@ -150,14 +150,14 @@
          * Con esta funcion obtenes la posicion del mes del arreglo tickets
          * mediante el ingreso de una cadena string
          */
-        $pos = -1;
         $i = 0;
-        for($i = 0; $i < count($tickets); $i++){
-            if(strtolower($tickets[$i]['Mes']) == strtolower($mes)){
-                $pos = $i;
-            }
+        while($i < count($tickets) && (strtolower($tickets[$i]['Mes']) != strtolower($mes))){
+            $i++;
         }
-        return $pos;
+        if($i >= count($tickets)){
+            $i = -1;
+        }
+        return $i;
     }
 
 
@@ -178,7 +178,7 @@
         }while($esMes == false);
         return $pos;
     } 
-    function ingresarVentas($juegoMasVendido, $pos, $tickets){
+    function ingresarVentas($aux, $pos, $tickets){
         /**
          * 
          */
@@ -191,47 +191,37 @@
             $cant = trim(fgets(STDIN));
             $total = $price * $cant;
                 if ($total > $tickets[$pos]["Monto"]){
-                    $juegoMasVendido = actualizarJuegos($juegoMasVendido, $pos, $name ,$price, $cant);                                
+                    $aux["nombre"] = $name;
+                    $aux["cantTickets"] = $cant;
+                    $aux["precioTicket"] = $price;
+                    $aux["total"] = $total;
+                    $aux["Update"] = true;                            
                 }else{
-                    echo "El monto no ha superado al ya almacenado, no se han hecho cambios \n";
+                    $aux["total"] = $total;
+                    $aux["Update"] = false;
                 }          
-        
-        return $juegoMasVendido;
+        return $aux;
         }
        
     
 
-    function actualizarJuegos($juegoMasVendido, $val, $name ,$price, $cant){
-        /**
-         * Uso la funcion strcmp para hacer la comparacion entre el nombre
-         * del juego en la posicion para determinar si es el mismo que el del
-         * mes correspondiente (Tengo entendido que no se modifica el nombre
-         * del juego mas vendido de ese mismo mes)
-         * Uso strtolower para evitar conflictos con mayusculas y minusculas
-         * En otras funciones uso el == directamente, pero vi que no influia en nada
-         * o hace exactamente lo mismo, asi que hay variaciones, pero la funcionalidad
-         * de comparacion es la misma)
-         */
-            if  (strcmp(strtolower($juegoMasVendido[$val]["juego"]), strtolower($name)) == 0){
-                $juegoMasVendido[$val]["precioTicket"] = $price;
-                $juegoMasVendido[$val]["cantTickets"] = $cant;
-                
-                echo "Datos Actualizados \n";
-            }else{
-                echo "El juego no es correcto, no se han actualizado datos \n";
-            }
-            return $juegoMasVendido; 
-    }
-    function actualizarMonto($tickets, $pos, $total, $totalNuevo){
+   
+    function actualizarMonto($tickets, $mes, $aux){
         /**
          * Creó con antelacion una variable if donde se compara el monto anterior con el
          * nuevo basandose en un monto total
          */
-        $tickets[$pos]["Monto"] = $totalNuevo + $total;
+        $tickets[$mes]["Monto"] = $tickets[$mes]["Monto"] + $aux["total"];
         return $tickets;
     }
-
-    function mostrarMesMayorVentas($juegoMasVendido, $tickets){
+    function actualizarJuegos($juegoMasVendido, $mes, $aux){
+        
+        $juegoMasVendido[$mes]["juego"] = $aux["nombre"];
+        $juegoMasVendido[$mes]["cantTickets"] = $aux["cantTickets"];
+        $juegoMasVendido[$mes]["precioTicket"] = $aux["precioTicket"];
+        return $juegoMasVendido;
+    }
+    function mesMayorVentas($juegoMasVendido, $tickets){
         $mayor = 0;
         $pos = 0;
         foreach ($tickets as $key => $value){
@@ -246,52 +236,45 @@
                 $pos = $key;
             }
         }
-        echo "<" . $tickets[$pos]["Mes"] . "> \n";
-        echo "Juego con mayor monto de venta: " . $juegoMasVendido[$pos]["juego"] . "\n";
-        echo "Precio de cada Ticket: " . $juegoMasVendido[$pos]["precioTicket"] . "\n";
-        echo "Numero de Tickets Vendidos: " . $juegoMasVendido[$pos]["cantTickets"] . "\n";
-        echo "Venta total de tickets: $" . $tickets[$pos]["Monto"] . "\n";
+        mostrarInfoMes($pos, $tickets, $juegoMasVendido);
     }
-
 
     function mejorVentaMes($juegoMasVendido, $tickets, $monto){
         /**
-         * Es igual a la funcion mostrarMesMayorVenta, pero con la particularidad
-         * de que dejara de recorrer los arreglos en el momento que encuentre un monto
-         * de tal mes que supere lo anteriormente ingresado y mostrando toda su informacion antes
-         * de regresar al menu
+         * Se actualizo a un while para que haga un recorrido parcial
          */
-        foreach($tickets as $key => $value){
-            if ($value["Monto"] > $monto){
-                 echo "<" . $tickets[$key]["Mes"] . "> \n";
-                 echo "Juego con mayor monto de venta: " . $juegoMasVendido[$key]["juego"] . "\n";
-                 echo "Precio de cada Ticket: " . $juegoMasVendido[$key]["precioTicket"] . "\n";
-                 echo "Numero de Tickets Vendidos: " . $juegoMasVendido[$key]["cantTickets"] . "\n";
-                 echo "Venta total de tickets del mes: $" . $tickets[$key]["Monto"] . "\n";
-                 return;
+        $mayor = false;
+        $pos = 0;
+        while($mayor = false && $pos < count($tickets)){
+            if ($tickets[$pos]["Monto"] > $monto){
+                mostrarInfoMes($pos, $tickets, $juegoMasVendido);
+                $mayor = true;
+            }else{
+                $pos++;
             }
+        }
+        if ($mayor == false){
+            echo "No se encontro un mes que superara el monto escrito";
         }
     }
 
+
     function mostrarInfoMes($pos, $tickets, $juegoMasVendido){
         /**
-         * Realice cambios usando el obtenerMesPos asi no hace una busqueda exhaustiva
-         * lo optimice en cierta forma
+         * La hace corta, si se cumple lo del if, muestra toda la info por pantalla, sino
+         * muestra que no existe ese mes;
          */
-        do{
-            if ($pos != -1){
+            if ($pos > -1 && $pos < count($tickets)){
                 echo "<" . $tickets[$pos]["Mes"] . "> \n";
                 echo "Juego con mayor monto de venta: " . $juegoMasVendido[$pos]["juego"] . "\n";
                 echo "Precio de cada Ticket: $" . $juegoMasVendido[$pos]["precioTicket"] . "\n";
                 echo "Numero de Tickets Vendidos: " . $juegoMasVendido[$pos]["cantTickets"] . "\n";
                 echo "Venta total de tickets del mes: $" . $tickets[$pos]["Monto"] . "\n";
             }else{
-                echo "El mes no existe, por favor, vuelva a ingresar otro o escriba 0 para volver atras \n";
-                $pos = solicitarMes($tickets);
-            }
-       
-    }while($pos == -1);
+                echo "El mes no existe \n";
+
     }
+}
 
     function juegosVendidosOrdenados($a, $b){
         /**
@@ -337,6 +320,16 @@
         
         $juegoMasVendido = array();
         $tickets = array();
+        $aux = array(
+            "nombre" => "",
+            "cantTickets" => 0,
+            "precioTicket" => 0,
+            "total" => 0,
+            "Update" => false
+            /** Declaro a update con valores booleanos para saber si usarlo para actualizar
+             * juegos y tickets o solo tickets
+             */
+        );
         $juegoMasVendido = preCargaArray();
         $tickets = preCargaMes($juegoMasVendido);
          do{
@@ -351,16 +344,18 @@
                 case 1: 
                     echo "Ingrese el mes \n";
                     $mes = solicitarMes($tickets);
-                    $total = $tickets[$mes]["Monto"];
-                    $juegoMasVendido = IngresarVentas($juegoMasVendido, $mes, $tickets);
-                    $totalNuevo = $juegoMasVendido[$mes]["precioTicket"] * $juegoMasVendido[$mes]["cantTickets"];
-                    if ($total < $totalNuevo){
-                    $tickets = actualizarMonto($tickets, $mes, $total, $totalNuevo);
-                    }         
+                    $aux = IngresarVentas($aux, $mes, $tickets);
+                    if($aux["Update"] == 1){
+                        $juegoMasVendido = actualizarJuegos($juegoMasVendido, $mes, $aux);
+                        $tickets = actualizarMonto($tickets,$mes,$aux);
+                        echo "Datos Actualizados \n";
+                    }else{
+                        $tickets = actualizarMonto($tickets, $mes, $aux);
+                        echo "Solo se actualizo el monto \n";
+                    }               
                 break;
                 case 2:
-
-                     mostrarMesMayorVentas($juegoMasVendido, $tickets); 
+                     mesMayorVentas($juegoMasVendido, $tickets); 
                 break;
                 case 3: 
                     echo "Ingrese el monto maximo \n";
@@ -369,8 +364,10 @@
                  break;
                 case 4: 
                     echo "Ingrese el mes \n";
+                    do{
                     $mes = solicitarMes($tickets);
                     mostrarInfoMes($mes , $tickets, $juegoMasVendido);
+                    }while($mes < 0);
                  break;
                 case 5:                  
                     mesesOrdenados($juegoMasVendido);
